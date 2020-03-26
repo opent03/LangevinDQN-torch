@@ -2,10 +2,8 @@ import gym
 from collections import namedtuple
 import time
 import numpy as np
-env = gym.make('Breakout-v0')
+env = gym.make('Pong-v0')
 obs = env.reset()
-print(type(obs))
-exit()
 print(env.action_space)
 print(env.observation_space)
 Transition = namedtuple('Transition',

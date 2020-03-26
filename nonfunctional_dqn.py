@@ -1,5 +1,6 @@
 '''
 A basic DQN to play breakout. Uses epsilon-greedy actions.
+This doesn't work.
 '''
 from collections import namedtuple
 import random
@@ -18,17 +19,17 @@ class DQN(nn.Module):
         self.fc_input_dim = 3072
         self.conv = nn.Sequential(
             nn.Conv2d(self.in_dim, 32, kernel_size=8, stride=4),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=4, stride=3),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Conv2d(64, 128, kernel_size=3, stride=1),
-            nn.LeakyReLU()
+            nn.ReLU()
         )
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
         self.fc = nn.Sequential(
             nn.Linear(self.fc_input_dim, 512),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.Linear(512, self.out_dim)
         )
 
@@ -64,7 +65,6 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
-
 
 class LangevinOptimizer(Optimizer):
     ''' Implements Langevin SGD updates to params '''
@@ -119,6 +119,9 @@ class Agent:
         if self.memory.position > self.batch_size:
             self.Q_eval.optimizer.zero_grad()
 
+            if self.steps % 1000 == 0:
+                print('Replaced target Q-network')
+                self.Q_target.load_state_dict(self.Q_eval.state_dict())
             batch = self.memory.sample(batch_size=self.batch_size)
             batch = Transition(*zip(*batch))    # ??????????????????????
 
@@ -129,8 +132,7 @@ class Agent:
 
             #print(" state batch shape ", state_batch.shape)
             #print(" next state batch shape ", next_state_batch.shape)
-            if self.steps % 1000:
-                self.Q_target.load_state_dict(self.Q_eval.state_dict())
+
             q_eval = self.Q_eval.forward(state_batch).to(device)
             q_target = self.Q_target.forward(state_batch).to(device)
             q_next = self.Q_eval.forward(next_state_batch).to(device)
@@ -143,8 +145,8 @@ class Agent:
 
             # custom epsilon
             if self.steps > 5000:
-                if self.epsilon - 1e-5 > self.eps_min:
-                    self.epsilon -= 1e-5
+                if self.epsilon - 5e-5 > self.eps_min:
+                    self.epsilon -= 5e-5
                 else:
                     self.epsilon=self.eps_min
             loss = self.Q_eval.loss(q_target, q_eval).to(device)

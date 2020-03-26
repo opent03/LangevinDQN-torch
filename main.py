@@ -1,6 +1,6 @@
 import gym
 import torch
-from DQN_breakout import Agent
+from nonfunctional_dqn import Agent
 import numpy as np
 from skimage import color
 
@@ -10,8 +10,8 @@ def img_preprocessing(image):
     return np.transpose(image, (2,0,1))
 
 if __name__ == '__main__':
-    env = gym.make('Breakout-v0')
-    agent = Agent( gamma=0.99, epsilon=1.0, lr=0.003, in_dim=1, out_dim=4, batch_size=64,
+    env = gym.make('Pong-v0')
+    agent = Agent( gamma=0.95, epsilon=1.0, lr=0.001, in_dim=1, out_dim=6, batch_size=32,
                  mem_capacity=10000, eps_min=0.01, eps_dec=0.999)
     scores = []
     eps_history = []
@@ -49,6 +49,8 @@ if __name__ == '__main__':
             observation_ = img_preprocessing(observation_)
             score += reward
             frames.append(observation_)
+            #if done and info['ale.lives'] == 0:
+            #    reward = -100
             agent.memory.push(observation, action, reward, observation_)
             agent.learn()
             observation = observation_
