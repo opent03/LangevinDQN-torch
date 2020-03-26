@@ -2,7 +2,7 @@ import gym
 from collections import namedtuple
 import time
 import numpy as np
-env = gym.make('Pong-v0')
+env = gym.make('PongNoFrameskip-v4')
 obs = env.reset()
 print(env.action_space)
 print(env.observation_space)

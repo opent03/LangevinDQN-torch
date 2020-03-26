@@ -1,57 +1,46 @@
 import gym
 import torch
-from nonfunctional_dqn import Agent
+from convdqn import Agent
 import numpy as np
 from skimage import color
-
-def img_preprocessing(image):
-    image = image[::2,::2,]
-    image = color.rgb2gray(image)[:, :, np.newaxis]
-    return np.transpose(image, (2,0,1))
+from utils import make_env
+import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    env = gym.make('Pong-v0')
-    agent = Agent( gamma=0.95, epsilon=1.0, lr=0.001, in_dim=1, out_dim=6, batch_size=32,
-                 mem_capacity=10000, eps_min=0.01, eps_dec=0.999)
+    env = make_env('PongNoFrameskip-v4', n_frames=4)
+    agent = Agent(gamma=0.95, eps=1.0, lr=1e-4, input_dims=(4,80,80),
+     batch_size=32, n_actions=6, max_mem_size=25000, eps_end=0.02, eps_dec=1e-5)
+
     scores = []
     eps_history = []
-    episodes = 500
+    episodes = 250
     score = 0
     for i in range(episodes):
         if i % 10 == 0 and i > 0:
             avg_score = np.mean(scores[max(0, i-10):i+1])
             print('episode {}, score {},'
-                  ' average score {}, epsilon {:.3f}'.format(i, score, avg_score, agent.epsilon))
+                  ' average score {}, epsilon {:.3f}'.format(i, score, avg_score, agent.eps))
         else:
-            print('episode {}, score {}, epsilon {:.3f}'.format(i, score, agent.epsilon))
+            print('episode {}, score {}, epsilon {:.3f}'.format(i, score, agent.eps))
         score = 0
-        eps_history.append(agent.epsilon)
-        observation = img_preprocessing(env.reset())
-
+        eps_history.append(agent.eps)
+        #observation = img_preprocessing(env.reset())
+        observation = env.reset()
         # sequence of frames
-        frames = [observation]
-        last_action = 0
+        #frames = [observation]
+        # = 0
 
         done = False
         while not done:
             env.render()
-            if len(frames) == 3:
-                action = agent.choose_action(np.array(frames))
-                frames = []
-            else:
-                action = last_action
-            try:
-                observation_, reward, done, info = env.step(action)
-            except:
-                print(last_action)
-                print(action)
-                exit(1)
-            observation_ = img_preprocessing(observation_)
+            action = agent.choose_action(observation)
+
+            observation_, reward, done, info = env.step(action)
+            #observation_ = img_preprocessing(observation_)
             score += reward
-            frames.append(observation_)
             #if done and info['ale.lives'] == 0:
             #    reward = -100
-            agent.memory.push(observation, action, reward, observation_)
+            agent.store_transition(observation, action, reward, observation_, done)
             agent.learn()
             observation = observation_
             last_action = action
