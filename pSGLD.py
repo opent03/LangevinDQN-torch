@@ -72,6 +72,7 @@ class pSGLD_Adam(Optimizer):
         return loss
 
 class pSGLD_RMSprop(Optimizer):
+    ''' Borrowed from pysgmcmc's documentation for sanity checking '''
     def __init__(self,
                  params,
                  lr=1e-2,
