@@ -7,12 +7,12 @@ if __name__ == '__main__':
     env = bsuite.load_from_id('deep_sea/0')
     num_actions = env.action_spec().num_values
 
-    agent = EpsilonAgent(gamma=0.99, eps=1.0, lr=0.003, input_dims=100, output_dims=2,
+    agent = EpsilonAgent(gamma=0.99, eps=1.0, lr=(0.0002*0.0001), input_dims=100, output_dims=2,
                          batch_size=128, n_actions=2, max_mem_size=100000, eps_end=0.01, eps_dec=1e-4)
 
     scores = []
     eps_history = []
-    episodes = 500
+    episodes = 2000
     for i in range(episodes):
         score = 0
         eps_history.append(agent.eps)

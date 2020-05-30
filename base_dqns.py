@@ -5,7 +5,7 @@ Tailored to the bsuite DeepSea environment.
 from collections import namedtuple
 import random
 import torch
-from torch.optim.optimizer import Optimizer
+from pSGLD import pSGLD_Adam, pSGLD_RMSprop
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,11 +18,11 @@ class DQN(nn.Module):
         super(DQN, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.fc1 = nn.Linear(in_dim, 256)
-        self.fc2 = nn.Linear(256,256)
-        self.fc3 = nn.Linear(256, 2)
+        self.fc1 = nn.Linear(in_dim, 50)
+        self.fc2 = nn.Linear(50,50)
+        self.fc3 = nn.Linear(50, 2)
         self.name = name
-        self.optimizer = optim.Adam(self.parameters(), lr=lr) if not langevin else LangevinOptimizer((self.parameters()))
+        self.optimizer = optim.Adam(self.parameters(), lr=lr) if not langevin else pSGLD_Adam(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
         self.device = device
 
@@ -61,9 +61,10 @@ class ReplayMemory(object):
     def __len__(self):
         return len(self.memory)
 
-class EpsilonAgent:
+class Agent:
     def __init__(self, gamma, eps, lr, input_dims, output_dims,
-                 batch_size, n_actions, max_mem_size=100000, eps_end=0.02, eps_dec=5e-4, target_update=200):
+                 batch_size, n_actions, max_mem_size=100000, eps_end=0.02,
+                 eps_dec=5e-4, target_update=200, langevin=False):
         self.gamma = gamma
         self.eps = eps
         self.lr = lr
@@ -75,22 +76,32 @@ class EpsilonAgent:
         self.eps_end = eps_end
         self.eps_dec = eps_dec
         self.target_update = target_update
+        self.langevin = langevin
 
         # DQNs
-        self.Q_eval = DQN(in_dim=self.input_dims, out_dim=self.output_dims, lr=self.lr, langevin=False)
-        self.Q_target = DQN(in_dim=self.input_dims, out_dim=self.output_dims, lr=self.lr, langevin=False, name='target')
+        self.Q_eval = DQN(in_dim=self.input_dims, out_dim=self.output_dims, lr=self.lr, langevin=langevin)
+        self.Q_target = DQN(in_dim=self.input_dims, out_dim=self.output_dims, lr=self.lr, langevin=langevin, name='target')
         self.Q_target.load_state_dict(self.Q_eval.state_dict())
 
         self.Q_target.to(self.Q_target.device)
         self.Q_eval.to(self.Q_eval.device)
 
         self.replay_memory = ReplayMemory(self.max_mem_size)
+        print(self.Q_eval.optimizer)
 
     def store_transition(self, state, action, reward, state_, done):
-        assert state.shape == (100,), state_.shape == (100,)
         self.replay_memory.push(state, action, reward, state_, done)
 
+    def replace_target_network(self):
+        self.Q_target.load_state_dict(self.Q_eval.state_dict())
+        print('Step {}: Target Q-Network replaced!'.format(self.replay_memory.counter))
+
     def choose_action(self, observation):
+
+        if self.langevin:
+            state = torch.tensor(observation, dtype=torch.float32).to(self.Q_eval.device)
+            q_vals = self.Q_eval.forward(state)
+            return torch.argmax(q_vals).item()
         if np.random.random() > self.eps:
             state = torch.tensor(observation, dtype=torch.float32).to(self.Q_eval.device)
             q_vals = self.Q_eval.forward(state)
@@ -103,16 +114,13 @@ class EpsilonAgent:
     def learn(self):
         if self.replay_memory.counter < self.batch_size:
             return
-        if self.replay_memory.counter % self.target_update == 0:  # change target manually like this
-            self.Q_target.load_state_dict(self.Q_eval.state_dict())
-            print('Step {}: Target Q-Network replaced!'.format(self.replay_memory.counter))
         self.Q_eval.optimizer.zero_grad()
 
         # we retrieve random batch and put them into the correct type
         batch = self.replay_memory.sample(self.batch_size)
         state_batch, action_batch, reward_batch, new_state_batch, terminal_batch = [],[],[],[],[]
         for i in range(len(batch)):
-            assert batch[i].state.shape == (100,), batch[i].next_state.shape == (100,)
+            # assert batch[i].state.shape == (100,), batch[i].next_state.shape == (100,)
             state_batch.append(batch[i].state)
             action_batch.append(batch[i].action)
             reward_batch.append(batch[i].reward)
@@ -135,21 +143,3 @@ class EpsilonAgent:
         self.Q_eval.optimizer.step()
 
         self.eps = self.eps - self.eps_dec if self.eps > self.eps_end else self.eps_end
-
-class LangevinOptimizer(Optimizer):
-    ''' Implements Langevin SGD updates to params '''
-    def __init__(self, params, lr=1e-3):
-        self.lr = lr
-        super(LangevinOptimizer, self).__init__(params)
-
-    @torch.no_grad()
-    def step(self,  closure=None):
-        loss = None
-        if closure is not None:
-            with torch.enable_grad():
-                loss = closure()
-        '''
-        for group in self.param_groups:
-            for p in group['params']:
-                d_p = p.grad12
-        '''
