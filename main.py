@@ -53,5 +53,5 @@ if __name__ == '__main__':
     path = 'saves/'
     scores = np.array(scores)
     avg_scores = np.array(avg_scores)
-    np.save(os.path.join(path, 'scores.npy'), scores)
-    np.save(os.path.join(path, 'avg_scores.npy'), avg_scores)
+    np.save(os.path.join(path, '{}_scores.npy'.format('langevin' if agent.langevin else 'adam')), scores)
+    np.save(os.path.join(path, '{}_avg_scores.npy'.format('langevin' if agent.langevin else 'adam')), avg_scores)
