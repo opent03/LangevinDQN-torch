@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import os
 
 def to_grayscale(img):
     return np.mean(img, axis=2).astype(np.uint8)
@@ -84,3 +85,11 @@ def make_env(env_name, n_frames):
     env = MoveImgChannel(env)
     env = BufferWrapper(env, n_frames)
     return ScaleFrame(env)
+
+
+def save_results(path, agent, env, scores, avg_scores):
+    scores = np.array(scores)
+    avg_scores = np.array(avg_scores)
+    np.save(os.path.join(path, '{}_scores_{}.npy'.format('langevin' if agent.langevin else 'adam',env)), scores)
+    np.save(os.path.join(path, '{}_avg_scores_{}.npy'.format('langevin' if agent.langevin else 'adam', env)),
+            avg_scores)

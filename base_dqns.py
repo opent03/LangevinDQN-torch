@@ -22,7 +22,7 @@ class DQN(nn.Module):
         self.fc2 = nn.Linear(50,50)
         self.fc3 = nn.Linear(50, 2)
         self.name = name
-        self.optimizer = optim.Adam(self.parameters(), lr=lr) if not langevin else pSGLD_Adam(self.parameters(), lr=lr)
+        self.optimizer = optim.Adam(self.parameters(), lr=lr) if not langevin else pSGLD_RMSprop(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
         self.device = device
 
@@ -97,7 +97,7 @@ class Agent:
         print('Step {}: Target Q-Network replaced!'.format(self.replay_memory.counter))
 
     def choose_action(self, observation):
-
+        # Yes, written this way for maximum computational efficiency, I hate the copy paste too.
         if self.langevin:
             state = torch.tensor(observation, dtype=torch.float32).to(self.Q_eval.device)
             q_vals = self.Q_eval.forward(state)

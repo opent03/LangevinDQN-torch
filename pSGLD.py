@@ -44,13 +44,13 @@ class pSGLD_Adam(Optimizer):
                     # Exponential moving average of gradient values
                     state['mt'] = torch.zeros_like(p, memory_format=torch.preserve_format)
                     # Exponential moving average of squared gradient values
-                    state['vt'] = torch.zeros_like(p, memory_format=torch.preserve_format)
+                    state['vt'] = torch.ones_like(p, memory_format=torch.preserve_format)
 
                 mt, vt = state['mt'], state['vt']
                 beta1, beta2 = group['betas']
 
                 state['step'] += 1
-                bias_correction1 = 1 - beta1  ** state['step']
+                bias_correction1 = 1 - beta1 ** state['step']
                 bias_correction2 = 1 - beta2 ** state['step']
 
                 if group['weight_decay'] != 0:
